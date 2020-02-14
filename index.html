@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.css">
+    <script
+  src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+  integrity="sha256-pasqAKBDmFT4eHoN2ndd6lN370kFiGUFyTiUHWhU7k8="
+  crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="/face-api/face-api.min.js"></script>
+    <style>
+        h2 { font-size: 150%;}
+        #loader {
+            visibility: hidden;
+        }
+
+        body[data-state="loading"] #loader {
+            visibility: visible;
+        }
+        #takenBtn { display: none;}
+        #report img {
+            width: 60px;
+            height: 60px
+        }
+
+        #stream {
+            position: relative;
+        }
+
+        #video {
+            background-color: cadetblue
+        }
+        #takePicBtn {display: none;}
+
+        #overlay, #maskOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+        #maskOverlay {
+            z-index: 3;
+            text-align: center;
+            width: 400px;
+            margin: 0;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        #extractAvatar canvas { width: 112px; height: 112px;}
+        .margin { width: 560px; margin: 0 auto;}
+        .row {
+            background-color: #eeeeee;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+
+<body data-state="loading">
+    <div class="center-content page-container">
+        <div class="progress" id="loader">
+            <div class="indeterminate"></div>
+        </div>
+        <div style="position: relative" class="margin">
+            
+            <div class="row">
+                <h2>You can allow webcam.</h2>
+                <div>
+                    <input id="webcamBtn" type="button" value="Webcam detection" />
+                    <input id="takePicBtn" type="button" value="detect mask" disabled/>
+                </div>
+                <div id="stream">
+                    <video onloadedmetadata="onPlay(this)" id="inputVideo" autoplay muted playsinline width="400" height="300">
+                    </video>
+                    <p id="maskOverlay"></p>
+                    <canvas id="overlay"></canvas>
+                    <div id="extractAvatar"></div>
+                </div>
+
+            </div>
+            <div class="row">
+                <h2>You can select multiple avatar images.</h2>
+                <input name="myPic" id="selectPic" type="file" accept="image/jpeg" multiple />
+                <ol id="report"></ol>
+            </div>
+        </div>
+        
+        <script>
+            let forwardTimes = [];
+            let model = null;
+            const minConfidence = 0.5;
+            const filesList = [];
+            const selectBtn = $('#selectPic');
+            const webcamBtn = $('#webcamBtn');
+            const takePicBtn = $('#takePicBtn');
+            const videoEl = $('#inputVideo').get(0);
+            const maskOverlay = document.querySelector('#maskOverlay');
+            let videoTrack = null;
+
+            function getFaceDetectorOptions() {
+                return new faceapi.SsdMobilenetv1Options({ minConfidence })
+            }
+            async function onPlay() {
+                console.log('onPlay');
+                /*
+                if (videoEl.paused || videoEl.ended)
+                    return setTimeout(() => onPlay())
+                    */
+
+
+                const options = getFaceDetectorOptions();
+                // console.log(o, ':oo');
+                const result = await faceapi.detectSingleFace(videoEl, options)
+                if (result) {
+                    // console.log(result, ':result')
+                    detectMaskbyCam(result).then(e => {
+                        console.log('detect mask finished')
+                    });
+                    const canvas = $('#overlay').get(0)
+                    const displaySize = { width: videoEl.width, height: videoEl.height }
+                    const dims = faceapi.matchDimensions(canvas, displaySize, true)
+                    faceapi.draw.drawDetections(canvas, faceapi.resizeResults(result, dims))
+
+                    // takePicBtn.prop('disabled', false);
+                    document.querySelector('body').dataset.state='';
+                    // const faceImages = await faceapi.extractFaces(videoEl, result)
+                }
+                setTimeout(() => onPlay(), 300);
+            }
+
+            //XXX
+            function toBlob() {
+                var newImg = document.createElement('img')
+                /*
+                const canvas = $('#overlay').get(0);
+                canvas.toBlob(function(blob) {
+                    var newImg = document.createElement('img'),
+                        url = URL.createObjectURL(blob);
+                    console.log(url);
+        
+        
+                    newImg.onload = function() {
+                        // no longer need to read the blob so it's revoked
+                        URL.revokeObjectURL(url);
+                    };
+                */
+                // newImg.src = 'mask.jpg';// url;
+                // newImg.src = 'face.jpg';
+                // newImg.width = 112;
+                // newImg.height= 112;
+                // window.n = newImg;
+                console.log(newImg, ':newImg');
+                // const example = tf.browser.fromPixels(newImg, 1);
+                // let imageTensor = tf.browser.fromPixels(newImg).resizeNearestNeighbor([112,112]).toInt().expandDims();
+                console.log(tf.browser.fromPixels(newImg).print());
+                let offset = tf.scalar(127.5);
+                let imageTensor =
+                    tf.browser.fromPixels(newImg).resizeNearestNeighbor([112, 112]).toFloat();//.sub(offset).div(offset).expandDims(); // .resizeNearestNeighbor([112,112]).toFloat().expandDims();
+                console.log(imageTensor, ':imageTensor');
+                const predict = async () => {
+                    try {
+                        const myPredict = await model.predict(imageTensor).print();
+                        return myPredict;
+                    } catch {
+                    }
+                }
+                predict().then(rs => console.log(rs, ':predict result'));
+                // console.log(predict(), ':predict');
+                // document.body.appendChild(newImg);
+                // });
+            }
+            function predictImage(imgEle, rsTarget) {
+                console.log('predictImage');
+                let offset = tf.scalar(127.5);
+                let imageTensor =
+                    tf.browser.fromPixels(imgEle).resizeNearestNeighbor([112, 112]).toFloat().sub(offset).div(offset).expandDims(); // .resizeNearestNeighbor([112,112]).toFloat().expandDims();
+                console.log(imageTensor, ':imageTensor');
+
+                // document.body.dataset.state = 'loading';
+                const predict = async () => {
+                    try {
+                        const myPredict = await model.predict(imageTensor).data();// .print();
+                        return myPredict;
+                    } catch {
+                    }
+                }
+                predict().then(rs => {
+                    console.log(rs, ':rs');
+                    document.body.dataset.state = '';
+                    // const faceResult = rs[0].toFixed(0) === '0' ? 'no' : 'yes';
+                    const maskResult = rs[1].toFixed(0) === '0' ? 'no' : 'yes';
+                    if (rsTarget) {
+                        rsTarget.innerHTML = ['mask:', maskResult].join('');
+                        return
+                    }
+                    $('#report').append(['<li>', imgEle.outerHTML, ' mask:', maskResult, '</li>'].join(''));
+                    console.log(rs, ':predict result')
+                });
+
+            }
+
+            function getCurrentFaceDetectionNet() {
+                return faceapi.nets.ssdMobilenetv1
+            }
+            function extractImage(canvas) {
+                    var img = canvas.toDataURL("image/jpg");
+                    // console.log(img);
+                    return img;
+            }
+
+            async function detectMaskbyCam (rs) {
+                const canvases = await faceapi.extractFaces(videoEl, [rs])
+                canvases.forEach(canvas => {
+                    // $('#extractAvatar').append(canvas)
+                    const dataURL = extractImage(canvas);
+                    const newImg = document.createElement('img');
+                    newImg.src = dataURL;
+                    newImg.onload = function () {
+                        console.log(newImg, ':taken avatar');
+                        // f = faceapi.resizeResults(detectFacesResult, { width: videoEl.width, height: videoEl.height});
+                        predictImage(newImg, maskOverlay);
+                    }
+                })
+            }
+
+            async function run() {
+                // load face detection model
+                // try to access users webcam and stream the images
+                // to the video element
+                const newImg = document.createElement('img')
+
+                takePicBtn.click(function () {
+                    detectMaskbyCam().then( e=> {console.log('Extract face')});
+                })
+                selectBtn.change(e => {
+                    console.log(e.target.files[0], "A picture was selected");
+                    document.body.dataset.state = 'loading';
+                    e.target.disabled = true;
+                    for (var i = 0; i < e.target.files.length; i++) {
+                        filesList.push(e.target.files[i]);
+                    }
+                    const file = filesList[0];
+                    imgReader(file);
+                    filesList.shift();
+                });
+
+                webcamBtn.click(e => {
+                    document.querySelector('body').dataset.state = 'loading';
+                    async function initVideo() {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                        const canvas = $('#overlay').get(0);
+                        const button = $('#takePicBtn').get(0)
+                        videoEl.srcObject = stream
+                        videoTrack = stream.getTracks()[0];
+                    }
+                    initVideo();
+                    console.log('face detect model loaded');
+                })
+                /*
+                button.onclick = function() {
+                    // canvas.getContext("2d").drawImage(videoEl, 0, 0, 400, 300);
+                    // var img = canvas.toDataURL("image/png");
+                    // console.log(img);
+                    toBlob();
+                };
+                */
+            }
+            function imgReader(file) {
+                let newImg = document.createElement('img')
+                let reader = new FileReader();
+                reader.onload = (e) => {
+                    let dataURL = reader.result;
+                    newImg.src = dataURL;
+                    //document.querySelector('#selectRow').appendChild(newImg);
+                    newImg.onload = e => {
+                        async function sentImg() {
+                            await predictImage(newImg);
+                            console.log('finish predict');
+                            if (filesList.length > 0) {
+                                imgReader(filesList[0]);
+                                filesList.shift();
+                            } else {
+                                selectBtn.prop('disabled', false);
+                            };
+                        }
+                        sentImg();
+                    };
+                }
+                reader.readAsDataURL(file);
+            }
+
+            async function loadModel() {
+                model = await tf.loadLayersModel('tfjs/model.json');
+                    await getCurrentFaceDetectionNet().load('/models');
+                // await tf.loadLayersModel('tfjs/ssd_mobilenetv1_model-weights_manifest.json');
+                // const model = await tf.loadLayersModel('tfjs/ssd_mobilenetv1_model-weights_manifest.json');
+                // const example = tf.browser.fromPixels($('#inputVideo').get(0));
+                // const prediction = model.predict(example);
+            }
+
+            function updateResults() { }
+
+            $(document).ready(function () {
+                run()
+                loadModel().then(e => {
+                    document.body.dataset.state = '';
+                    // $('#report').append('<li>Model loaded</li>');
+                });
+
+            });
+        </script>
+</body>
+
+</html>
