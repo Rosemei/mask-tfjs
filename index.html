@@ -81,7 +81,7 @@
             </div>
             <div class="row">
                 <h2>You can select multiple avatar images.</h2>
-                <input name="myPic" id="selectPic" type="file" accept="image/jpeg" multiple />
+                <input name="myPic" id="selectPic" type="file" accept="image/jpeg" multiple disabled/>
                 <ol id="report"></ol>
             </div>
         </div>
@@ -254,6 +254,7 @@
                     document.body.dataset.state = '';
                     document.querySelector('#stateReport').innerHTML = "";
                     webcamBtn.prop('disabled', false);
+                    selectBtn.prop('disabled', false);
                     // $('#report').append('<li>Model loaded</li>');
                 });
 
