@@ -63,11 +63,11 @@
             <div class="indeterminate"></div>
         </div>
         <div style="position: relative" class="margin">
-            
+            <div class="row" id="stateReport">The weights is loading...</div>
             <div class="row">
                 <h2>You can allow webcam.</h2>
                 <div>
-                    <input id="webcamBtn" type="button" value="Webcam detection" />
+                    <input id="webcamBtn" type="button" value="Webcam detection" disabled/>
                     <input id="takePicBtn" type="button" value="detect mask" disabled/>
                 </div>
                 <div id="stream">
@@ -252,6 +252,8 @@
                 run()
                 loadModel().then(e => {
                     document.body.dataset.state = '';
+                    document.querySelector('#stateReport').innerHTML = "";
+                    webcamBtn.prop('disabled', false);
                     // $('#report').append('<li>Model loaded</li>');
                 });
 
