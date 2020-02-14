@@ -103,14 +103,8 @@
             }
             async function onPlay() {
                 console.log('onPlay');
-                /*
-                if (videoEl.paused || videoEl.ended)
-                    return setTimeout(() => onPlay())
-                    */
-
 
                 const options = getFaceDetectorOptions();
-                // console.log(o, ':oo');
                 const result = await faceapi.detectSingleFace(videoEl, options)
                 if (result) {
                     // console.log(result, ':result')
@@ -121,55 +115,12 @@
                     const displaySize = { width: videoEl.width, height: videoEl.height }
                     const dims = faceapi.matchDimensions(canvas, displaySize, true)
                     faceapi.draw.drawDetections(canvas, faceapi.resizeResults(result, dims))
-
                     // takePicBtn.prop('disabled', false);
                     document.querySelector('body').dataset.state='';
-                    // const faceImages = await faceapi.extractFaces(videoEl, result)
                 }
                 setTimeout(() => onPlay(), 300);
             }
 
-            //XXX
-            function toBlob() {
-                var newImg = document.createElement('img')
-                /*
-                const canvas = $('#overlay').get(0);
-                canvas.toBlob(function(blob) {
-                    var newImg = document.createElement('img'),
-                        url = URL.createObjectURL(blob);
-                    console.log(url);
-        
-        
-                    newImg.onload = function() {
-                        // no longer need to read the blob so it's revoked
-                        URL.revokeObjectURL(url);
-                    };
-                */
-                // newImg.src = 'mask.jpg';// url;
-                // newImg.src = 'face.jpg';
-                // newImg.width = 112;
-                // newImg.height= 112;
-                // window.n = newImg;
-                console.log(newImg, ':newImg');
-                // const example = tf.browser.fromPixels(newImg, 1);
-                // let imageTensor = tf.browser.fromPixels(newImg).resizeNearestNeighbor([112,112]).toInt().expandDims();
-                console.log(tf.browser.fromPixels(newImg).print());
-                let offset = tf.scalar(127.5);
-                let imageTensor =
-                    tf.browser.fromPixels(newImg).resizeNearestNeighbor([112, 112]).toFloat();//.sub(offset).div(offset).expandDims(); // .resizeNearestNeighbor([112,112]).toFloat().expandDims();
-                console.log(imageTensor, ':imageTensor');
-                const predict = async () => {
-                    try {
-                        const myPredict = await model.predict(imageTensor).print();
-                        return myPredict;
-                    } catch {
-                    }
-                }
-                predict().then(rs => console.log(rs, ':predict result'));
-                // console.log(predict(), ':predict');
-                // document.body.appendChild(newImg);
-                // });
-            }
             function predictImage(imgEle, rsTarget) {
                 console.log('predictImage');
                 let offset = tf.scalar(127.5);
@@ -291,12 +242,8 @@
             }
 
             async function loadModel() {
-                model = await tf.loadLayersModel('tfjs/model.json');
-                    await getCurrentFaceDetectionNet().load('/models');
-                // await tf.loadLayersModel('tfjs/ssd_mobilenetv1_model-weights_manifest.json');
-                // const model = await tf.loadLayersModel('tfjs/ssd_mobilenetv1_model-weights_manifest.json');
-                // const example = tf.browser.fromPixels($('#inputVideo').get(0));
-                // const prediction = model.predict(example);
+                model = await tf.loadLayersModel('./tfjs/model.json');
+                    await getCurrentFaceDetectionNet().load('./models');
             }
 
             function updateResults() { }
