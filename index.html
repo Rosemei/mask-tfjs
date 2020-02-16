@@ -94,7 +94,7 @@
             const selectBtn = $('#selectPic');
             const webcamBtn = $('#webcamBtn');
             const takePicBtn = $('#takePicBtn');
-            const videoEl = $('#inputVideo').get(0);
+            const videoEl = document.querySelector('#inputVideo');
             const maskOverlay = document.querySelector('#maskOverlay');
             let videoTrack = null;
 
@@ -176,9 +176,6 @@
             }
 
             async function run() {
-                // load face detection model
-                // try to access users webcam and stream the images
-                // to the video element
                 const newImg = document.createElement('img')
 
                 takePicBtn.click(function () {
@@ -199,6 +196,8 @@
                 webcamBtn.click(e => {
                     document.querySelector('body').dataset.state = 'loading';
                     async function initVideo() {
+                        // try to access users webcam and stream the images
+                        // to the video element
                         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
                         const canvas = $('#overlay').get(0);
                         const button = $('#takePicBtn').get(0)
@@ -208,14 +207,6 @@
                     initVideo();
                     console.log('face detect model loaded');
                 })
-                /*
-                button.onclick = function() {
-                    // canvas.getContext("2d").drawImage(videoEl, 0, 0, 400, 300);
-                    // var img = canvas.toDataURL("image/png");
-                    // console.log(img);
-                    toBlob();
-                };
-                */
             }
             function imgReader(file) {
                 let newImg = document.createElement('img')
@@ -242,8 +233,10 @@
             }
 
             async function loadModel() {
+                // load face detection model
+                await getCurrentFaceDetectionNet().load('./models');
+                // load mask-checker model
                 model = await tf.loadLayersModel('./tfjs/model.json');
-                    await getCurrentFaceDetectionNet().load('./models');
             }
 
             function updateResults() { }
